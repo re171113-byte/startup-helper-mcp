@@ -21,7 +21,7 @@ function isFranchise(name: string): boolean {
   );
 }
 
-// 시장 갭 분석
+// 시장 갭 분석 (franchiseRatio는 0-100 퍼센트)
 function analyzeMarketGap(
   competitors: Competitor[],
   franchiseRatio: number,
@@ -35,11 +35,11 @@ function analyzeMarketGap(
     return "경쟁업체가 적어 진입하기 좋은 환경입니다.";
   }
 
-  if (franchiseRatio >= 0.7) {
+  if (franchiseRatio >= 70) {
     return "프랜차이즈 비중이 높습니다. 개성있는 개인 매장으로 차별화 가능합니다.";
   }
 
-  if (franchiseRatio <= 0.3) {
+  if (franchiseRatio <= 30) {
     return "개인 매장 비중이 높습니다. 브랜드 파워로 경쟁력 확보 가능합니다.";
   }
 
@@ -65,10 +65,10 @@ export async function findCompetitors(
       limit
     );
 
-    // 프랜차이즈 비율 계산
+    // 프랜차이즈 비율 계산 (퍼센트, 0-100)
     const franchiseCount = competitors.filter((c) => isFranchise(c.name)).length;
     const franchiseRatio = competitors.length > 0
-      ? Math.round((franchiseCount / competitors.length) * 100) / 100
+      ? Math.round((franchiseCount / competitors.length) * 100)
       : 0;
 
     // 시장 갭 분석

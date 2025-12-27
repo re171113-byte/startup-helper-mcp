@@ -714,11 +714,6 @@ export async function getStartupChecklist(
       tips = [...REGIONAL_INFO[normalizedRegion].tips, ...tips];
     }
 
-    // 지역 표시
-    const regionDisplay = normalizedRegion
-      ? `${normalizedRegion} (${region})`
-      : region || "전국 평균";
-
     return {
       success: true,
       data: {

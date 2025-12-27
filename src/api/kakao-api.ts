@@ -191,7 +191,7 @@ class KakaoLocalApi {
     }));
   }
 
-  // 상권 내 업종별 업체 수 조회
+  // 상권 내 업종별 업체 수 조회 (실제 전체 개수 반환)
   async countByCategories(
     x: string,
     y: string,
@@ -206,12 +206,12 @@ class KakaoLocalApi {
 
     const counts: Record<string, number> = {};
 
-    // 병렬로 조회
+    // 병렬로 조회 - meta.total_count 사용
     const results = await Promise.all(
       categories.map(async (cat) => {
         try {
-          const places = await this.searchByCategory(cat.code, x, y, { radius, size: 15 });
-          return { name: cat.name, count: places.length };
+          const count = await this.getCategoryTotalCount(cat.code, x, y, radius);
+          return { name: cat.name, count };
         } catch {
           return { name: cat.name, count: 0 };
         }
@@ -223,6 +223,39 @@ class KakaoLocalApi {
     }
 
     return counts;
+  }
+
+  // 카테고리별 전체 개수 조회 (meta.total_count 활용)
+  async getCategoryTotalCount(
+    categoryCode: string,
+    x: string,
+    y: string,
+    radius: number = 500
+  ): Promise<number> {
+    this.checkApiKey();
+
+    const params = new URLSearchParams({
+      category_group_code: categoryCode,
+      x,
+      y,
+      radius: String(radius),
+      size: "1", // 최소한으로 조회
+      sort: "distance",
+    });
+
+    const url = `${KAKAO_API_BASE}/search/category.json?${params}`;
+
+    const response = await fetchWithTimeout(url, {
+      headers: { Authorization: `KakaoAK ${this.apiKey}` },
+    });
+
+    if (!response.ok) {
+      throw new Error(`카카오 API 요청 실패: ${response.status}`);
+    }
+
+    const data = (await response.json()) as KakaoPlaceResponse;
+    // meta.total_count에 실제 전체 개수가 있음
+    return data.meta?.total_count || data.documents.length;
   }
 }
 

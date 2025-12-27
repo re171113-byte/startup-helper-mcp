@@ -72,7 +72,7 @@ function convertBizinfoToFund(item: {
 function filterByUserConditions(
   funds: PolicyFund[],
   region: string,
-  founderType?: string
+  _founderType?: string
 ): PolicyFund[] {
   return funds.filter((fund) => {
     // 지역 필터링 (지역이 명시되어 있으면 해당 지역만)

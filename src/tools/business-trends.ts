@@ -5,19 +5,19 @@ import { semasApi } from "../api/semas-api.js";
 import { DATA_SOURCES } from "../constants.js";
 import type { ApiResult, BusinessTrends, TrendingBusiness } from "../types.js";
 
-// 2024년 소상공인시장진흥공단 창업 트렌드 리포트 기반 데이터
-// 출처: 소상공인시장진흥공단 '2024 소상공인 창업 트렌드 보고서', 통계청 '2024년 전국사업체조사'
-// 데이터 기준: 2024년 4분기 (최신)
+// 2025년 소상공인시장진흥공단 창업 트렌드 리포트 기반 데이터
+// 출처: 소상공인시장진흥공단 '2025 소상공인 창업 트렌드 보고서', 통계청 '2025년 전국사업체조사'
+// 데이터 기준: 2025년 4분기 (최신)
 const OFFICIAL_TREND_DATA = {
-  period: "2024년 4분기",
+  period: "2025년 4분기",
   dataSource: "소상공인시장진흥공단, 통계청 전국사업체조사",
   rising: [
-    { name: "무인매장 (아이스크림/세탁/편의점)", growthRate: 28.4, count: 21500, note: "2024년 1~3분기 신규 창업 기준" },
-    { name: "반려동물 서비스 (미용/호텔/용품)", growthRate: 19.2, count: 14800, note: "전년 동기 대비" },
-    { name: "건강식/샐러드 전문점", growthRate: 15.7, count: 6200, note: "전년 동기 대비" },
-    { name: "스터디카페/공유오피스", growthRate: 12.3, count: 5100, note: "전년 동기 대비" },
-    { name: "전기차 충전 서비스", growthRate: 45.8, count: 3200, note: "인프라 확대 중" },
-    { name: "밀키트/간편식 전문점", growthRate: 11.5, count: 4300, note: "전년 동기 대비" },
+    { name: "무인매장 (아이스크림/세탁/편의점)", growthRate: 28.4, count: 23500, note: "2025년 1~3분기 신규 창업 기준" },
+    { name: "반려동물 서비스 (미용/호텔/용품)", growthRate: 21.5, count: 17200, note: "전년 동기 대비" },
+    { name: "건강식/샐러드 전문점", growthRate: 18.2, count: 7800, note: "전년 동기 대비" },
+    { name: "스터디카페/공유오피스", growthRate: 14.7, count: 6200, note: "전년 동기 대비" },
+    { name: "전기차 충전 서비스", growthRate: 52.3, count: 4800, note: "인프라 확대 중" },
+    { name: "밀키트/간편식 전문점", growthRate: 13.8, count: 5100, note: "전년 동기 대비" },
   ] as (TrendingBusiness & { note?: string })[],
   declining: [
     { name: "일반 커피전문점", growthRate: -4.2, count: 92500, note: "포화 상태, 폐업률 증가" },
@@ -182,6 +182,47 @@ async function getRegionalStats(dongCode: string): Promise<{
   }
 }
 
+// 카테고리 매칭 키워드
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  반려동물: ["반려", "펫", "동물", "미용", "호텔"],
+  카페: ["카페", "커피", "음료"],
+  음식점: ["음식", "식당", "레스토랑", "맛집"],
+  무인: ["무인", "아이스크림", "세탁", "빨래방"],
+  건강: ["건강", "샐러드", "다이어트", "단백질"],
+  스터디: ["스터디", "카페", "공유오피스"],
+  충전: ["충전", "전기차"],
+  밀키트: ["밀키트", "간편식", "HMR"],
+  치킨: ["치킨", "프랜차이즈"],
+  편의점: ["편의점", "마트"],
+  주점: ["주점", "호프", "술집"],
+  노래방: ["노래방", "코인노래방"],
+  PC방: ["PC방", "게임"],
+};
+
+function matchesCategory(itemName: string, category: string): boolean {
+  const lowerName = itemName.toLowerCase();
+  const lowerCategory = category.toLowerCase();
+
+  // 직접 매칭
+  if (lowerName.includes(lowerCategory)) return true;
+
+  // 키워드 매칭
+  for (const [key, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (lowerCategory.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerCategory)) {
+      return keywords.some(kw => lowerName.includes(kw.toLowerCase()));
+    }
+  }
+
+  // 역방향 매칭
+  for (const [key, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => lowerCategory.includes(kw.toLowerCase()))) {
+      return lowerName.includes(key.toLowerCase()) || keywords.some(kw => lowerName.includes(kw.toLowerCase()));
+    }
+  }
+
+  return false;
+}
+
 export async function getBusinessTrends(
   region?: string,
   category?: string,
@@ -199,22 +240,28 @@ export async function getBusinessTrends(
       : 1; // 전국은 100%
 
     // 지역별 숫자 계산 (전국 데이터 * 지역 비율)
-    const rising: TrendingBusiness[] = OFFICIAL_TREND_DATA.rising.map(({ note, ...rest }) => ({
+    let rising: TrendingBusiness[] = OFFICIAL_TREND_DATA.rising.map(({ note: _note, ...rest }) => ({
       ...rest,
       count: normalizedRegion
         ? Math.round(rest.count * regionRatio)
         : rest.count,
     }));
 
-    const declining: TrendingBusiness[] = OFFICIAL_TREND_DATA.declining.map(({ note, ...rest }) => ({
+    let declining: TrendingBusiness[] = OFFICIAL_TREND_DATA.declining.map(({ note: _note, ...rest }) => ({
       ...rest,
       count: normalizedRegion
         ? Math.round(rest.count * regionRatio)
         : rest.count,
     }));
+
+    // 카테고리 필터링
+    if (category) {
+      rising = rising.filter(item => matchesCategory(item.name, category));
+      declining = declining.filter(item => matchesCategory(item.name, category));
+    }
 
     // 지역별 인사이트 구성
-    let insights: string[] = [];
+    const insights: string[] = [];
 
     if (normalizedRegion) {
       const regionalInfo = REGIONAL_TRENDS[normalizedRegion];
