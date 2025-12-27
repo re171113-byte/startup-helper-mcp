@@ -611,23 +611,113 @@ function normalizeBusinessType(input: string): string {
   return "default";
 }
 
+// 지역별 비용 배율 및 특화 팁
+const REGIONAL_INFO: Record<string, { costMultiplier: number; tips: string[] }> = {
+  서울: {
+    costMultiplier: 1.3,
+    tips: [
+      "[서울] 보증금/임대료가 전국 평균 대비 30~50% 높습니다.",
+      "[서울] 강남/홍대/이태원 등 핫플레이스는 권리금이 추가로 발생합니다.",
+      "[서울] 서울신용보증재단 창업지원 프로그램을 활용하세요.",
+    ],
+  },
+  부산: {
+    costMultiplier: 0.85,
+    tips: [
+      "[부산] 서면/해운대 상권은 관광객 시즌 영향이 큽니다.",
+      "[부산] 부산신용보증재단 소상공인 지원사업을 확인하세요.",
+      "[부산] 임대료는 서울 대비 15~25% 저렴합니다.",
+    ],
+  },
+  경기: {
+    costMultiplier: 1.1,
+    tips: [
+      "[경기] 신도시(판교/동탄/광교)는 서울과 비슷한 임대료 수준입니다.",
+      "[경기] 경기도 청년창업지원센터를 활용하세요.",
+      "[경기] 지역에 따라 비용 편차가 큽니다.",
+    ],
+  },
+  대전: {
+    costMultiplier: 0.75,
+    tips: [
+      "[대전] 유성구 대학가/연구단지 상권이 활발합니다.",
+      "[대전] 임대료는 서울 대비 25~35% 저렴합니다.",
+      "[대전] 대전창조경제혁신센터 창업 프로그램을 활용하세요.",
+    ],
+  },
+  인천: {
+    costMultiplier: 0.9,
+    tips: [
+      "[인천] 송도/청라 신도시는 임대료가 높은 편입니다.",
+      "[인천] 인천신용보증재단 소상공인 지원사업을 확인하세요.",
+    ],
+  },
+  제주: {
+    costMultiplier: 1.0,
+    tips: [
+      "[제주] 관광 시즌(여름/겨울) 매출 편차가 큽니다.",
+      "[제주] 물류비용이 육지 대비 높습니다.",
+      "[제주] 제주창조경제혁신센터 창업 지원을 활용하세요.",
+    ],
+  },
+  대구: {
+    costMultiplier: 0.8,
+    tips: [
+      "[대구] 동성로 상권이 가장 활발합니다.",
+      "[대구] 임대료는 서울 대비 20~30% 저렴합니다.",
+    ],
+  },
+  광주: {
+    costMultiplier: 0.75,
+    tips: [
+      "[광주] 충장로/상무지구 상권이 핵심입니다.",
+      "[광주] 임대료는 서울 대비 25~35% 저렴합니다.",
+    ],
+  },
+};
+
 export async function getStartupChecklist(
   businessType: string,
-  _region?: string
+  region?: string
 ): Promise<ApiResult<StartupChecklist>> {
   try {
     const normalizedType = normalizeBusinessType(businessType);
 
+    // 지역 정규화
+    const normalizedRegion = region
+      ? Object.keys(REGIONAL_INFO).find((r) => region.includes(r))
+      : null;
+
     const licenses = LICENSE_DB[normalizedType] || LICENSE_DB.default;
     const checklist = CHECKLIST_DB[normalizedType] || CHECKLIST_DB.default;
     const costData = COST_DB[normalizedType] || COST_DB.default;
-    const tips = generateTips(normalizedType);
+
+    // 지역별 비용 배율 적용
+    const costMultiplier = normalizedRegion
+      ? REGIONAL_INFO[normalizedRegion].costMultiplier
+      : 1;
 
     const estimatedCost = {
-      min: costData.min,
-      max: costData.max,
-      breakdown: costData.breakdown,
+      min: Math.round(costData.min * costMultiplier),
+      max: Math.round(costData.max * costMultiplier),
+      breakdown: Object.fromEntries(
+        Object.entries(costData.breakdown).map(([key, value]) => [
+          key,
+          Math.round(value * costMultiplier),
+        ])
+      ),
     };
+
+    // 지역별 팁 추가
+    let tips = generateTips(normalizedType);
+    if (normalizedRegion) {
+      tips = [...REGIONAL_INFO[normalizedRegion].tips, ...tips];
+    }
+
+    // 지역 표시
+    const regionDisplay = normalizedRegion
+      ? `${normalizedRegion} (${region})`
+      : region || "전국 평균";
 
     return {
       success: true,
@@ -641,7 +731,9 @@ export async function getStartupChecklist(
       meta: {
         source: DATA_SOURCES.sbizApi,
         timestamp: new Date().toISOString(),
-        dataNote: "출처: 소상공인마당, 정부24 인허가 포털. 지역별로 상이할 수 있으니 관할 관청에 확인 권장.",
+        dataNote: normalizedRegion
+          ? `${normalizedRegion} 지역 기준 비용 산정. 출처: 소상공인마당, 정부24.`
+          : "전국 평균 기준. 지역별로 상이할 수 있으니 관할 관청에 확인 권장.",
       },
     };
   } catch (error) {

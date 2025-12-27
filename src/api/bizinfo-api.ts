@@ -103,24 +103,54 @@ export class BizinfoApi {
     founderType?: string;
     count?: number;
   }): Promise<BizinfoItem[]> {
-    // 창업 분야로 검색
-    let hashtags = "창업";
-
-    if (options?.region) {
-      hashtags += `,${options.region}`;
-    }
-
-    if (options?.founderType === "청년") {
-      hashtags += ",청년";
-    } else if (options?.founderType === "여성") {
-      hashtags += ",여성";
-    }
-
-    return this.searchFunds({
+    // 창업 분야로 검색 (hashtags 없이 넓게 검색 후 필터링)
+    const results = await this.searchFunds({
       category: "창업",
-      hashtags,
-      count: options?.count || 30,
+      count: options?.count || 50,
     });
+
+    // 클라이언트 측 필터링
+    let filtered = results;
+
+    // 지역 필터링 (해당 지역 또는 전국 사업)
+    if (options?.region) {
+      const regionKeywords = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
+      const userRegion = regionKeywords.find(r => options.region?.includes(r));
+
+      if (userRegion) {
+        filtered = filtered.filter(item => {
+          const text = `${item.pblancNm} ${item.bsnsSumryCn} ${item.hashtags}`;
+          // 특정 다른 지역이 명시된 사업 제외
+          const otherRegions = regionKeywords.filter(r => r !== userRegion);
+          const hasOtherRegion = otherRegions.some(r => text.includes(r));
+          // 해당 지역이거나 지역 제한 없는 사업
+          return text.includes(userRegion) || !hasOtherRegion;
+        });
+      }
+    }
+
+    // 창업자 유형 필터링
+    if (options?.founderType === "청년") {
+      // 청년 관련 사업 우선, 중장년 전용 제외
+      filtered = filtered.filter(item => {
+        const text = `${item.pblancNm} ${item.hashtags} ${item.trgetNm}`;
+        return !text.includes("중장년") && !text.includes("시니어") && !text.includes("50대");
+      });
+    } else if (options?.founderType === "여성") {
+      // 여성 관련 사업 우선
+      filtered = filtered.filter(item => {
+        const text = `${item.pblancNm} ${item.hashtags} ${item.trgetNm}`;
+        return !text.includes("남성");
+      });
+    } else if (options?.founderType === "중장년") {
+      // 청년 전용 사업 제외
+      filtered = filtered.filter(item => {
+        const text = `${item.pblancNm} ${item.hashtags} ${item.trgetNm}`;
+        return !text.includes("청년") || text.includes("중장년");
+      });
+    }
+
+    return filtered;
   }
 
   // HTML 태그 제거

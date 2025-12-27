@@ -36,7 +36,8 @@ const OFFICIAL_TREND_DATA = {
 };
 
 // 지역별 특화 트렌드 (2024년 지역별 창업 동향 분석 기반)
-const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[] }> = {
+// 지역별 사업체 비율 (통계청 전국사업체조사 기준)
+const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[]; ratio: number }> = {
   서울: {
     trends: [
       "강남/서초: 프리미엄 펫샵, 고급 레스토랑 성장",
@@ -44,6 +45,7 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "성동/성수: 카페/갤러리 복합 공간 트렌드",
     ],
     topIndustries: ["음식점", "소매업", "전문서비스업"],
+    ratio: 0.21, // 전국 대비 서울 비율 21%
   },
   부산: {
     trends: [
@@ -52,6 +54,7 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "감천/영도: 로컬 관광 콘텐츠 연계 창업 증가",
     ],
     topIndustries: ["음식점", "숙박업", "소매업"],
+    ratio: 0.07, // 7%
   },
   경기: {
     trends: [
@@ -60,6 +63,7 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "파주/김포: 물류센터 인근 편의시설 수요 증가",
     ],
     topIndustries: ["음식점", "소매업", "생활서비스"],
+    ratio: 0.24, // 24%
   },
   대전: {
     trends: [
@@ -67,6 +71,7 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "중구/서구: 대학가 배달 전문점 성장",
     ],
     topIndustries: ["음식점", "교육서비스", "소매업"],
+    ratio: 0.03, // 3%
   },
   인천: {
     trends: [
@@ -74,6 +79,7 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "부평/구월: 전통 상권 리뉴얼 트렌드",
     ],
     topIndustries: ["음식점", "소매업", "물류서비스"],
+    ratio: 0.05, // 5%
   },
   제주: {
     trends: [
@@ -82,6 +88,23 @@ const REGIONAL_TRENDS: Record<string, { trends: string[]; topIndustries: string[
       "장기체류 '한달살기' 대상 서비스 확대",
     ],
     topIndustries: ["숙박업", "음식점", "소매업"],
+    ratio: 0.015, // 1.5%
+  },
+  대구: {
+    trends: [
+      "동성로: 젊은 층 타겟 트렌디 카페 성장",
+      "수성구: 프리미엄 교육서비스 수요 증가",
+    ],
+    topIndustries: ["음식점", "소매업", "교육서비스"],
+    ratio: 0.05, // 5%
+  },
+  광주: {
+    trends: [
+      "충장로: 로컬 맛집 브랜드화 트렌드",
+      "첨단지구: IT/스타트업 관련 서비스 성장",
+    ],
+    topIndustries: ["음식점", "소매업", "문화서비스"],
+    ratio: 0.03, // 3%
   },
 };
 
@@ -165,14 +188,30 @@ export async function getBusinessTrends(
   _period?: "3months" | "6months" | "1year"
 ): Promise<ApiResult<BusinessTrends>> {
   try {
-    // 기본 트렌드 데이터
-    const rising: TrendingBusiness[] = OFFICIAL_TREND_DATA.rising.map(({ note, ...rest }) => rest);
-    const declining: TrendingBusiness[] = OFFICIAL_TREND_DATA.declining.map(({ note, ...rest }) => rest);
-
     // 지역 정규화
     const normalizedRegion = region
       ? Object.keys(REGIONAL_TRENDS).find((r) => region.includes(r))
       : null;
+
+    // 지역별 비율 적용하여 데이터 생성
+    const regionRatio = normalizedRegion
+      ? REGIONAL_TRENDS[normalizedRegion].ratio
+      : 1; // 전국은 100%
+
+    // 지역별 숫자 계산 (전국 데이터 * 지역 비율)
+    const rising: TrendingBusiness[] = OFFICIAL_TREND_DATA.rising.map(({ note, ...rest }) => ({
+      ...rest,
+      count: normalizedRegion
+        ? Math.round(rest.count * regionRatio)
+        : rest.count,
+    }));
+
+    const declining: TrendingBusiness[] = OFFICIAL_TREND_DATA.declining.map(({ note, ...rest }) => ({
+      ...rest,
+      count: normalizedRegion
+        ? Math.round(rest.count * regionRatio)
+        : rest.count,
+    }));
 
     // 지역별 인사이트 구성
     let insights: string[] = [];
