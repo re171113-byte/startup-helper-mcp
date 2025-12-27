@@ -113,7 +113,26 @@ AI: [get_business_trends 호출]
 📉 하락 업종: 커피전문점 -5%, 치킨 -8%, PC방 -12%
 ```
 
-## 🔧 설치 및 실행
+## ☁️ Render 배포
+
+### 1. 자동 배포 (Blueprint)
+1. [Render 대시보드](https://dashboard.render.com)에서 "New +" → "Blueprint" 선택
+2. GitHub 저장소 연결: `re171113-byte/startup-helper-mcp`
+3. `render.yaml`이 자동으로 인식됩니다
+4. 환경 변수에 `KAKAO_API_KEY` 입력
+5. "Apply" 클릭하면 배포 완료!
+
+### 2. 수동 배포
+1. "New +" → "Web Service" 선택
+2. GitHub 저장소 연결
+3. 설정:
+   - **Build Command**: `pnpm install && pnpm build`
+   - **Start Command**: `pnpm start:http`
+   - **Environment**: `KAKAO_API_KEY=your_key`
+
+배포 후 URL: `https://startup-helper-mcp.onrender.com`
+
+## 🔧 로컬 설치 및 실행
 
 ### 환경 변수 설정
 ```bash
