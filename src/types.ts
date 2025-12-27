@@ -13,6 +13,7 @@ export interface ApiResult<T> {
     source: string;
     timestamp: string;
     cached?: boolean;
+    dataNote?: string;
   };
 }
 
@@ -101,6 +102,8 @@ export interface License {
   required: boolean;
   processingDays: number;
   documents?: string[];
+  fee?: number;
+  note?: string;
 }
 
 // 창업 체크리스트 결과

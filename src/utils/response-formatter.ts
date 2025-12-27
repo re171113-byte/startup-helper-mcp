@@ -152,9 +152,16 @@ export function formatChecklist(result: ApiResult<StartupChecklist>): string {
   d.licenses.forEach((l) => {
     const status = l.required ? "필수" : "선택";
     lines.push(`   • [${status}] ${l.name}`);
-    lines.push(`     발급: ${l.authority} | 소요: ${l.processingDays}일`);
+    let infoLine = `     발급: ${l.authority} | 소요: ${l.processingDays}일`;
+    if (l.fee && l.fee > 0) {
+      infoLine += ` | 수수료: ${l.fee.toLocaleString()}원`;
+    }
+    lines.push(infoLine);
     if (l.documents && l.documents.length > 0) {
       lines.push(`     서류: ${l.documents.join(", ")}`);
+    }
+    if (l.note) {
+      lines.push(`     참고: ${l.note}`);
     }
   });
 
