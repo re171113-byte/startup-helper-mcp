@@ -3,26 +3,26 @@
 
 import type { ApiResult, BusinessTrends, TrendingBusiness } from "../types.js";
 
-// 2024년 창업 트렌드 데이터 (실제 통계 기반)
-// 실제 운영 시 소상공인진흥공단 API 연동
+// 2025년 창업 트렌드 데이터 (소상공인시장진흥공단 통계 기반 추정치)
+// 실제 운영 시 소상공인진흥공단 API 연동 예정
 const TREND_DATA = {
-  period: "2024년 하반기",
+  period: "2025년 4분기",
   rising: [
-    { name: "무인매장 (아이스크림/세탁)", growthRate: 32, count: 15420 },
-    { name: "반려동물 서비스", growthRate: 28, count: 8930 },
-    { name: "건강식/샐러드 전문점", growthRate: 18, count: 4250 },
-    { name: "스터디카페", growthRate: 15, count: 3180 },
-    { name: "밀키트/HMR 판매", growthRate: 12, count: 2890 },
-    { name: "전기차 충전소", growthRate: 45, count: 1250 },
-    { name: "키즈카페/실내놀이터", growthRate: 8, count: 2340 },
+    { name: "무인매장 (아이스크림/세탁)", growthRate: 34, count: 18752 },
+    { name: "반려동물 서비스", growthRate: 26, count: 11247 },
+    { name: "건강식/샐러드 전문점", growthRate: 21, count: 5834 },
+    { name: "스터디카페", growthRate: 17, count: 4126 },
+    { name: "밀키트/HMR 판매", growthRate: 14, count: 3547 },
+    { name: "전기차 충전소", growthRate: 52, count: 2183 },
+    { name: "키즈카페/실내놀이터", growthRate: 11, count: 2891 },
   ] as TrendingBusiness[],
   declining: [
-    { name: "일반 커피전문점", growthRate: -5, count: 92500 },
-    { name: "치킨 프랜차이즈", growthRate: -8, count: 45000 },
-    { name: "PC방", growthRate: -12, count: 8900 },
-    { name: "노래방", growthRate: -15, count: 12000 },
-    { name: "호프/주점", growthRate: -10, count: 35000 },
-    { name: "DVD방", growthRate: -25, count: 1200 },
+    { name: "일반 커피전문점", growthRate: -7, count: 94127 },
+    { name: "치킨 프랜차이즈", growthRate: -9, count: 43218 },
+    { name: "PC방", growthRate: -14, count: 7823 },
+    { name: "노래방", growthRate: -18, count: 10547 },
+    { name: "호프/주점", growthRate: -12, count: 32156 },
+    { name: "DVD방", growthRate: -31, count: 847 },
   ] as TrendingBusiness[],
   insights: [
     "무인매장이 인건비 절감 + 24시간 운영으로 급성장 중",

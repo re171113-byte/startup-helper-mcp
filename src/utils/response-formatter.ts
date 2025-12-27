@@ -119,6 +119,9 @@ export function formatPolicyFunds(result: ApiResult<PolicyFundRecommendation>): 
   lines.push(`💡 TIP`);
   lines.push(`   ${d.tip}`);
 
+  lines.push(``);
+  lines.push(`⚠️ 참고: 최신 지원금 정보는 기업마당(bizinfo.go.kr)에서 확인하세요.`);
+
   return lines.join("\n");
 }
 
@@ -208,6 +211,9 @@ export function formatTrends(result: ApiResult<BusinessTrends>): string {
   lines.push(``);
   lines.push(`🎯 추천`);
   lines.push(`   ${d.recommendation}`);
+
+  lines.push(``);
+  lines.push(`⚠️ 참고: 통계 기반 추정치이며, 실제 창업 결정 시 공식 출처(소상공인마당, 통계청) 확인을 권장합니다.`);
 
   return lines.join("\n");
 }
