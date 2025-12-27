@@ -148,22 +148,13 @@ async function runHttp() {
   const app = express();
   const PORT = process.env.PORT || SERVER_CONFIG.defaultPort;
 
-  // CORS 설정
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+  // CORS 설정 - PlayMCP 및 모든 도메인 허용
   app.use(
     cors({
-      origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (
-          process.env.NODE_ENV === "development" ||
-          allowedOrigins.length === 0 ||
-          allowedOrigins.includes(origin)
-        ) {
-          return callback(null, true);
-        }
-        callback(new Error("CORS 정책에 의해 차단되었습니다."));
-      },
+      origin: true,
       credentials: true,
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
     })
   );
 
@@ -201,6 +192,12 @@ async function runHttp() {
   // SSE endpoint
   app.get("/sse", async (req: Request, res: Response) => {
     console.log("New SSE connection");
+
+    // SSE 필수 헤더 설정
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
 
     if (transports.size >= SERVER_CONFIG.maxSessions) {
       console.error(`Session limit reached: ${transports.size}`);
