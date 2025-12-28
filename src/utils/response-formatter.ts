@@ -7,6 +7,9 @@ import type {
   PolicyFundRecommendation,
   StartupChecklist,
   BusinessTrends,
+  StartupCostAnalysis,
+  BreakevenAnalysis,
+  PopulationAnalysis,
 } from "../types.js";
 import type { CommercialAreaComparison } from "../tools/commercial-area.js";
 
@@ -271,6 +274,187 @@ export function formatComparison(result: ApiResult<CommercialAreaComparison>): s
   lines.push(``);
   lines.push(`📝 분석 요약`);
   lines.push(d.summary);
+
+  if (result.meta) {
+    lines.push(``);
+    lines.push(`📅 데이터 출처: ${result.meta.source}`);
+    if (result.meta.dataNote) {
+      lines.push(`📌 ${result.meta.dataNote}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// 창업 비용 분석 결과 포맷
+export function formatStartupCost(result: ApiResult<StartupCostAnalysis>): string {
+  if (!result.success) {
+    return `❌ 오류: ${result.error?.message}\n💡 ${result.error?.suggestion || ""}`;
+  }
+
+  const d = result.data!;
+  const lines = [
+    `💰 ${d.businessType} 창업 비용 분석`,
+    ``,
+    `📍 조건`,
+    `   • 지역: ${d.region}`,
+    `   • 규모: ${d.size}평`,
+    `   • 인테리어: ${d.premiumLevel}`,
+    ``,
+    `💵 총 예상 비용`,
+    `   • 최소: ${d.totalCost.min.toLocaleString()}만원`,
+    `   • 예상: ${d.totalCost.estimated.toLocaleString()}만원`,
+    `   • 최대: ${d.totalCost.max.toLocaleString()}만원`,
+    ``,
+    `📊 비용 상세 내역`,
+    `   • 보증금: ${d.breakdown.deposit.toLocaleString()}만원`,
+    `   • 인테리어: ${d.breakdown.interior.toLocaleString()}만원`,
+    `   • 장비/설비: ${d.breakdown.equipment.toLocaleString()}만원`,
+    `   • 초기 재고: ${d.breakdown.initialInventory.toLocaleString()}만원`,
+    `   • 운영자금(6개월): ${d.breakdown.operatingFund.toLocaleString()}만원`,
+    `   • 기타(인허가/마케팅): ${d.breakdown.other.toLocaleString()}만원`,
+    ``,
+    `📌 지역 특성`,
+    `   ${d.regionalNote}`,
+    ``,
+    `💡 비용 절감 TIP`,
+  ];
+
+  d.tips.forEach((tip) => {
+    lines.push(`   • ${tip}`);
+  });
+
+  if (result.meta) {
+    lines.push(``);
+    lines.push(`📅 데이터 출처: ${result.meta.source}`);
+    if (result.meta.dataNote) {
+      lines.push(`📌 ${result.meta.dataNote}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// 손익분기점 분석 결과 포맷
+export function formatBreakeven(result: ApiResult<BreakevenAnalysis>): string {
+  if (!result.success) {
+    return `❌ 오류: ${result.error?.message}\n💡 ${result.error?.suggestion || ""}`;
+  }
+
+  const d = result.data!;
+  const achievabilityEmoji = d.breakeven.achievability === "쉬움" ? "✅" : d.breakeven.achievability === "보통" ? "⚠️" : "❌";
+
+  const lines = [
+    `📈 ${d.businessType} 손익분기점 분석`,
+    ``,
+    `📍 조건`,
+    `   • 지역: ${d.region}`,
+    `   • 규모: ${d.size}평`,
+    `   • 객단가: ${d.breakeven.averagePrice.toLocaleString()}원`,
+    ``,
+    `💸 월 고정비 구조`,
+    `   • 임대료: ${d.costs.breakdown.rent.toLocaleString()}만원`,
+    `   • 인건비: ${d.costs.breakdown.labor.toLocaleString()}만원`,
+    `   • 공과금: ${d.costs.breakdown.utilities.toLocaleString()}만원`,
+    `   • 기타: ${d.costs.breakdown.other.toLocaleString()}만원`,
+    `   • 합계: ${d.costs.fixedMonthly.toLocaleString()}만원/월`,
+    ``,
+    `📊 원가율: ${(d.costs.variableRatio * 100).toFixed(0)}%`,
+    ``,
+    `🎯 손익분기점`,
+    `   • 월 필요 매출: ${d.breakeven.monthlySales.toLocaleString()}만원`,
+    `   • 일 필요 매출: ${d.breakeven.dailySales.toLocaleString()}만원`,
+    `   • 일 필요 고객: ${d.breakeven.dailyCustomers}명`,
+    `   • 달성 가능성: ${achievabilityEmoji} ${d.breakeven.achievability}`,
+    ``,
+    `📉 수익 시나리오`,
+    `   비관적 (매출 ${(d.scenarios.pessimistic.monthlySales / 10000).toFixed(0)}만원)`,
+    `      → 월 수익: ${d.scenarios.pessimistic.monthlyProfit.toLocaleString()}만원`,
+    `   현실적 (매출 ${(d.scenarios.realistic.monthlySales / 10000).toFixed(0)}만원)`,
+    `      → 월 수익: ${d.scenarios.realistic.monthlyProfit.toLocaleString()}만원`,
+    `   낙관적 (매출 ${(d.scenarios.optimistic.monthlySales / 10000).toFixed(0)}만원)`,
+    `      → 월 수익: ${d.scenarios.optimistic.monthlyProfit.toLocaleString()}만원`,
+    ``,
+    `⏱️ 투자 회수 기간`,
+    `   • 투자금: ${d.paybackPeriod.investmentAmount.toLocaleString()}만원`,
+    `   • 예상 회수: ${d.paybackPeriod.months > 100 ? "회수 어려움" : `약 ${d.paybackPeriod.months}개월`}`,
+    `   • 평가: ${d.paybackPeriod.note}`,
+    ``,
+    `💡 인사이트`,
+  ];
+
+  d.insights.forEach((insight) => {
+    lines.push(`   • ${insight}`);
+  });
+
+  if (result.meta) {
+    lines.push(``);
+    lines.push(`📅 데이터 출처: ${result.meta.source}`);
+    if (result.meta.dataNote) {
+      lines.push(`📌 ${result.meta.dataNote}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// 상권 인구 분석 결과 포맷
+export function formatPopulation(result: ApiResult<PopulationAnalysis>): string {
+  if (!result.success) {
+    return `❌ 오류: ${result.error?.message}\n💡 ${result.error?.suggestion || ""}`;
+  }
+
+  const d = result.data!;
+  const lines = [
+    `👥 ${d.location.name} 상권 인구 분석`,
+    ``,
+    `📍 위치: ${d.location.address}`,
+    ``,
+    `📊 인구 현황 (일 평균)`,
+    `   • 총 유동인구: ${d.population.total.toLocaleString()}명`,
+    `   • 거주인구: ${d.population.residential.toLocaleString()}명`,
+    `   • 직장인구: ${d.population.working.toLocaleString()}명`,
+    `   • 유동인구: ${d.population.floating.toLocaleString()}명`,
+    ``,
+    `⏰ 시간대별 분포`,
+    `   • 오전(06-11시): ${d.timeDistribution.morning}%`,
+    `   • 점심(11-14시): ${d.timeDistribution.lunch}%`,
+    `   • 오후(14-18시): ${d.timeDistribution.afternoon}%`,
+    `   • 저녁(18-22시): ${d.timeDistribution.evening}%`,
+    `   • 야간(22-06시): ${d.timeDistribution.night}%`,
+    ``,
+    `👤 연령대별 분포`,
+    `   • 10대: ${d.ageDistribution.teens}%`,
+    `   • 20대: ${d.ageDistribution.twenties}%`,
+    `   • 30대: ${d.ageDistribution.thirties}%`,
+    `   • 40대: ${d.ageDistribution.forties}%`,
+    `   • 50대+: ${d.ageDistribution.fiftyPlus}%`,
+    ``,
+    `⚧️ 성별 비율`,
+    `   • 남성: ${d.genderRatio.male}%`,
+    `   • 여성: ${d.genderRatio.female}%`,
+  ];
+
+  if (d.businessFit) {
+    lines.push(``);
+    lines.push(`🎯 업종 적합도`);
+    lines.push(`   • 적합도 점수: ${d.businessFit.score}점/100점`);
+    lines.push(`   • 주요 타겟층: ${d.businessFit.targetAge}`);
+    lines.push(`   • 피크 시간대: ${d.businessFit.peakHours}`);
+    lines.push(`   • 평가: ${d.businessFit.recommendation}`);
+  }
+
+  lines.push(``);
+  lines.push(`✨ 상권 특성`);
+  d.characteristics.forEach((char) => {
+    lines.push(`   • ${char}`);
+  });
+
+  lines.push(``);
+  lines.push(`💡 인사이트`);
+  d.insights.forEach((insight) => {
+    lines.push(`   • ${insight}`);
+  });
 
   if (result.meta) {
     lines.push(``);

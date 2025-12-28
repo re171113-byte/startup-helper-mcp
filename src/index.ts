@@ -15,6 +15,9 @@ import { findCompetitors } from "./tools/competitors.js";
 import { recommendPolicyFunds } from "./tools/policy-funds.js";
 import { getStartupChecklist } from "./tools/startup-checklist.js";
 import { getBusinessTrends } from "./tools/business-trends.js";
+import { calculateStartupCost } from "./tools/startup-cost.js";
+import { analyzeBreakeven } from "./tools/breakeven.js";
+import { analyzePopulation } from "./tools/population.js";
 import {
   formatCommercialArea,
   formatCompetitors,
@@ -22,6 +25,9 @@ import {
   formatChecklist,
   formatTrends,
   formatComparison,
+  formatStartupCost,
+  formatBreakeven,
+  formatPopulation,
 } from "./utils/response-formatter.js";
 import { APP_CONFIG, SERVER_CONFIG } from "./constants.js";
 
@@ -160,6 +166,67 @@ function createServer() {
       const result = await getBusinessTrends(region, category, period);
       return {
         content: [{ type: "text", text: formatTrends(result) }],
+        isError: !result.success,
+      };
+    }
+  );
+
+  // Tool 6: 창업 비용 계산기
+  server.tool(
+    "calculate_startup_cost",
+    "업종별, 지역별, 규모별 예상 창업 비용을 계산합니다. 보증금, 인테리어, 장비, 운영자금 등 상세 내역을 제공합니다.",
+    {
+      business_type: z.string().describe("창업 업종 (예: 카페, 음식점, 편의점, 미용실, 치킨, 베이커리)"),
+      region: z.string().describe("창업 지역 (예: 서울, 강남, 홍대, 부산, 경기)"),
+      size: z.number().optional().default(15).describe("매장 크기 (평수), 기본값: 15평"),
+      premium_level: z
+        .enum(["basic", "standard", "premium"])
+        .optional()
+        .default("standard")
+        .describe("인테리어 수준 (basic: 기본, standard: 중급, premium: 고급)"),
+    },
+    async ({ business_type, region, size, premium_level }) => {
+      const result = await calculateStartupCost(business_type, region, size, premium_level);
+      return {
+        content: [{ type: "text", text: formatStartupCost(result) }],
+        isError: !result.success,
+      };
+    }
+  );
+
+  // Tool 7: 손익분기점 분석
+  server.tool(
+    "analyze_breakeven",
+    "업종별 손익분기점을 분석합니다. 월 필요 매출, 일 필요 고객수, 투자 회수 기간, 수익 시나리오를 제공합니다.",
+    {
+      business_type: z.string().describe("창업 업종 (예: 카페, 음식점, 편의점, 미용실)"),
+      region: z.string().describe("창업 지역 (예: 서울, 강남, 부산)"),
+      monthly_rent: z.number().optional().describe("월 임대료 (만원), 미입력 시 자동 추정"),
+      size: z.number().optional().default(15).describe("매장 크기 (평수), 기본값: 15평"),
+      average_price: z.number().optional().describe("평균 객단가 (원), 미입력 시 업종 평균 사용"),
+    },
+    async ({ business_type, region, monthly_rent, size, average_price }) => {
+      const result = await analyzeBreakeven(business_type, region, monthly_rent, size, average_price);
+      return {
+        content: [{ type: "text", text: formatBreakeven(result) }],
+        isError: !result.success,
+      };
+    }
+  );
+
+  // Tool 8: 상권 인구 분석
+  server.tool(
+    "analyze_population",
+    "상권의 유동인구, 연령대, 성별, 시간대별 분포를 분석합니다. 업종 적합도 점수도 제공합니다.",
+    {
+      location: z.string().describe("분석할 위치 (예: 강남역, 홍대입구, 신촌, 명동, 해운대)"),
+      business_type: z.string().optional().describe("창업 예정 업종 (선택, 입력 시 적합도 분석 제공)"),
+      radius: z.number().optional().default(500).describe("분석 반경 (m), 기본값: 500"),
+    },
+    async ({ location, business_type, radius }) => {
+      const result = await analyzePopulation(location, business_type, radius);
+      return {
+        content: [{ type: "text", text: formatPopulation(result) }],
         isError: !result.success,
       };
     }

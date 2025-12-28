@@ -191,3 +191,98 @@ export interface KakaoAddress {
     building_name: string;
   };
 }
+
+// 창업 비용 분석 결과
+export interface StartupCostAnalysis {
+  businessType: string;
+  region: string;
+  size: number;
+  premiumLevel: string;
+  totalCost: {
+    min: number;
+    max: number;
+    estimated: number;
+  };
+  breakdown: {
+    deposit: number;
+    interior: number;
+    equipment: number;
+    initialInventory: number;
+    operatingFund: number;
+    other: number;
+  };
+  regionalNote: string;
+  tips: string[];
+}
+
+// 손익분기점 분석 결과
+export interface BreakevenAnalysis {
+  businessType: string;
+  region: string;
+  size: number;
+  costs: {
+    fixedMonthly: number;
+    variableRatio: number;
+    breakdown: {
+      rent: number;
+      labor: number;
+      utilities: number;
+      other: number;
+    };
+  };
+  breakeven: {
+    monthlySales: number;
+    dailySales: number;
+    dailyCustomers: number;
+    averagePrice: number;
+    achievability: "쉬움" | "보통" | "어려움";
+  };
+  scenarios: {
+    pessimistic: { monthlySales: number; monthlyProfit: number };
+    realistic: { monthlySales: number; monthlyProfit: number };
+    optimistic: { monthlySales: number; monthlyProfit: number };
+  };
+  paybackPeriod: {
+    investmentAmount: number;
+    months: number;
+    note: string;
+  };
+  insights: string[];
+}
+
+// 상권 인구 분석 결과
+export interface PopulationAnalysis {
+  location: Location;
+  population: {
+    total: number;
+    residential: number;
+    working: number;
+    floating: number;
+  };
+  timeDistribution: {
+    morning: number;
+    lunch: number;
+    afternoon: number;
+    evening: number;
+    night: number;
+  };
+  ageDistribution: {
+    teens: number;
+    twenties: number;
+    thirties: number;
+    forties: number;
+    fiftyPlus: number;
+  };
+  genderRatio: {
+    male: number;
+    female: number;
+  };
+  businessFit?: {
+    score: number;
+    targetAge: string;
+    peakHours: string;
+    recommendation: string;
+  };
+  characteristics: string[];
+  insights: string[];
+}
