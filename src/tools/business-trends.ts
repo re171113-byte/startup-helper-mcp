@@ -5,17 +5,17 @@ import { semasApi } from "../api/semas-api.js";
 import { DATA_SOURCES } from "../constants.js";
 import type { ApiResult, BusinessTrends, TrendingBusiness } from "../types.js";
 
-// 지역별 대표 행정동 코드 (SEMAS API용)
-const REGION_DONG_CODES: Record<string, string> = {
-  서울: "1168010100", // 강남구 역삼동
-  부산: "2626010100", // 해운대구 우동
-  대구: "2711010100", // 중구 동인동
-  인천: "2818510100", // 연수구 송도동
-  광주: "2920010100", // 서구 치평동
-  대전: "3020010100", // 유성구 봉명동
-  울산: "3114010100", // 남구 삼산동
-  경기: "4113510100", // 성남시 분당구 정자동
-  제주: "5011010100", // 제주시 연동
+// 지역별 대표 좌표 (SEMAS API 반경검색용)
+const REGION_COORDINATES: Record<string, { lat: number; lng: number; name: string }> = {
+  서울: { lat: 37.4979, lng: 127.0276, name: "강남역" },
+  부산: { lat: 35.1796, lng: 129.0756, name: "해운대" },
+  대구: { lat: 35.8714, lng: 128.6014, name: "동성로" },
+  인천: { lat: 37.3917, lng: 126.6433, name: "송도" },
+  광주: { lat: 35.1595, lng: 126.8526, name: "충장로" },
+  대전: { lat: 36.3504, lng: 127.3845, name: "유성" },
+  울산: { lat: 35.5384, lng: 129.3114, name: "삼산동" },
+  경기: { lat: 37.3595, lng: 127.1053, name: "분당" },
+  제주: { lat: 33.4996, lng: 126.5312, name: "연동" },
 };
 
 // 2025년 소상공인시장진흥공단 창업 트렌드 리포트 기반 데이터 (참고용)
@@ -236,24 +236,43 @@ function matchesCategory(itemName: string, category: string): boolean {
   return false;
 }
 
-// SEMAS API로 실시간 업종 통계 조회
+// SEMAS API로 실시간 업종 통계 조회 (반경 검색 기반)
 async function fetchRealTimeStats(region: string): Promise<{
   topIndustries: { name: string; count: number }[];
   totalStores: number;
+  areaName: string;
 } | null> {
   try {
-    const dongCode = REGION_DONG_CODES[region];
-    if (!dongCode) return null;
+    const coords = REGION_COORDINATES[region];
+    if (!coords) return null;
 
-    const stats = await semasApi.getIndustryStats(dongCode);
-    if (!stats || stats.length === 0) return null;
+    // 반경 1km 내 상가업소 조회
+    const { stores, totalCount } = await semasApi.getStoresByRadius(
+      coords.lng,
+      coords.lat,
+      1000, // 1km 반경
+      { numOfRows: 1000 }
+    );
+
+    if (!stores || stores.length === 0) return null;
+
+    // 업종별 집계
+    const industryMap = new Map<string, number>();
+    for (const store of stores) {
+      const category = store.indsLclsNm || "기타";
+      industryMap.set(category, (industryMap.get(category) || 0) + 1);
+    }
+
+    // 정렬하여 상위 업종 추출
+    const topIndustries = Array.from(industryMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     return {
-      topIndustries: stats.slice(0, 10).map(s => ({
-        name: s.category,
-        count: s.count,
-      })),
-      totalStores: stats.reduce((sum, s) => sum + s.count, 0),
+      topIndustries,
+      totalStores: totalCount || stores.length,
+      areaName: coords.name,
     };
   } catch (error) {
     console.log("SEMAS API 조회 실패, 정적 데이터 사용:", error);
@@ -273,7 +292,7 @@ export async function getBusinessTrends(
       : null;
 
     // 실시간 데이터 시도
-    let realTimeData: { topIndustries: { name: string; count: number }[]; totalStores: number } | null = null;
+    let realTimeData: { topIndustries: { name: string; count: number }[]; totalStores: number; areaName: string } | null = null;
     let isRealTime = false;
 
     if (normalizedRegion) {
@@ -372,9 +391,10 @@ export async function getBusinessTrends(
 
     // 실시간 데이터가 있으면 먼저 표시
     if (isRealTime && realTimeData) {
-      insights.push(`[${normalizedRegion} 실시간 상권 현황]`);
-      insights.push(`총 상가업소: ${realTimeData.totalStores.toLocaleString()}개`);
+      insights.push(`[${normalizedRegion} ${realTimeData.areaName} 실시간 상권 현황]`);
+      insights.push(`반경 1km 내 총 상가업소: ${realTimeData.totalStores.toLocaleString()}개`);
       insights.push(`주요 업종: ${realTimeData.topIndustries.slice(0, 5).map(i => `${i.name}(${i.count}개)`).join(", ")}`);
+      insights.push("※ 소상공인시장진흥공단 상권정보 API 실시간 데이터");
       insights.push("");
     }
 
