@@ -59,7 +59,7 @@ async function fetchSemasCompetitors(
   topCategories: { name: string; count: number }[];
 } | null> {
   try {
-    const { stores, totalCount } = await semasApi.getStoresByRadius(
+    const { stores } = await semasApi.getStoresByRadius(
       coordinates.lng,
       coordinates.lat,
       radius,
