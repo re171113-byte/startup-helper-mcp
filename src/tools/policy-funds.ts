@@ -215,13 +215,14 @@ function sortFunds(funds: PolicyFund[], sortBy: SortBy): PolicyFund[] {
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
         return a.deadline.localeCompare(b.deadline);
-      case "amount":
+      case "amount": {
         // 금액 높은 순 (숫자 추출 시도)
         const extractAmount = (str: string): number => {
           const match = str.match(/(\d+)/);
           return match ? parseInt(match[1]) : 0;
         };
         return extractAmount(b.amount) - extractAmount(a.amount);
+      }
       case "match_score":
       default:
         // 기본 정렬 (이미 매칭 점수로 정렬됨)

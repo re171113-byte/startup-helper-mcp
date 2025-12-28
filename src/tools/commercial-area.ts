@@ -148,7 +148,7 @@ export async function compareCommercialAreas(
         saturation: data.density.saturationScore,
       }))
       .sort((a, b) => b.score - a.score)
-      .map((item, index) => ({
+      .map((item, _index) => ({
         location: item.location,
         score: item.score,
         recommendation: (item.score >= 70 ? "추천" : item.score >= 40 ? "보통" : "비추천") as "추천" | "보통" | "비추천",
