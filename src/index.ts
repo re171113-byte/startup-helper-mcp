@@ -10,7 +10,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { analyzeCommercialArea } from "./tools/commercial-area.js";
+import { analyzeCommercialArea, compareCommercialAreas } from "./tools/commercial-area.js";
 import { findCompetitors } from "./tools/competitors.js";
 import { recommendPolicyFunds } from "./tools/policy-funds.js";
 import { getStartupChecklist } from "./tools/startup-checklist.js";
@@ -21,6 +21,7 @@ import {
   formatPolicyFunds,
   formatChecklist,
   formatTrends,
+  formatComparison,
 } from "./utils/response-formatter.js";
 import { APP_CONFIG, SERVER_CONFIG } from "./constants.js";
 
@@ -48,7 +49,25 @@ function createServer() {
     }
   );
 
-  // Tool 2: 경쟁업체 검색
+  // Tool 2: 상권 비교 분석 (신규)
+  server.tool(
+    "compare_commercial_areas",
+    "여러 지역의 상권을 비교 분석합니다. 어떤 지역이 창업에 더 적합한지 순위와 점수를 제공합니다.",
+    {
+      locations: z.array(z.string()).min(2).max(5).describe("비교할 지역 목록 (2~5개, 예: ['강남역', '홍대입구', '건대입구'])"),
+      business_type: z.string().describe("창업 예정 업종 (예: 카페, 음식점, 편의점)"),
+      radius: z.number().optional().default(500).describe("분석 반경 (m), 기본값: 500"),
+    },
+    async ({ locations, business_type, radius }) => {
+      const result = await compareCommercialAreas(locations, business_type, radius);
+      return {
+        content: [{ type: "text", text: formatComparison(result) }],
+        isError: !result.success,
+      };
+    }
+  );
+
+  // Tool 3: 경쟁업체 검색
   server.tool(
     "find_competitors",
     "주변 경쟁업체를 검색하고 분석합니다. 프랜차이즈 비율, 시장 진입 여지 등을 분석합니다.",
@@ -67,10 +86,10 @@ function createServer() {
     }
   );
 
-  // Tool 3: 정책지원금 추천
+  // Tool 4: 정책지원금 추천
   server.tool(
     "recommend_policy_funds",
-    "창업자 조건에 맞는 정부/지자체 정책지원금을 추천합니다. 융자, 보조금, 멘토링 프로그램 등을 안내합니다.",
+    "창업자 조건에 맞는 정부/지자체 정책지원금을 추천합니다. 융자, 보조금, 멘토링 프로그램 등을 안내합니다. 정렬, 필터, 페이지네이션을 지원합니다.",
     {
       business_type: z.string().describe("창업 업종 (예: 카페, 음식점, IT서비스)"),
       stage: z.enum(["예비창업", "초기창업", "운영중", "재창업"]).describe("창업 단계"),
@@ -80,14 +99,25 @@ function createServer() {
         .optional()
         .describe("창업자 유형"),
       founder_age: z.number().optional().describe("창업자 나이"),
+      sort_by: z
+        .enum(["deadline", "amount", "match_score"])
+        .optional()
+        .describe("정렬 기준 (deadline: 마감일순, amount: 금액순, match_score: 매칭점수순)"),
+      filter_type: z
+        .enum(["융자", "보조금", "멘토링", "교육", "복합"])
+        .optional()
+        .describe("지원금 유형 필터"),
+      page: z.number().optional().default(1).describe("페이지 번호, 기본값: 1"),
+      limit: z.number().optional().default(10).describe("페이지당 결과 수, 기본값: 10"),
     },
-    async ({ business_type, stage, region, founder_type, founder_age }) => {
+    async ({ business_type, stage, region, founder_type, founder_age, sort_by, filter_type, page, limit }) => {
       const result = await recommendPolicyFunds(
         business_type,
         stage,
         region,
         founder_type,
-        founder_age
+        founder_age,
+        { sortBy: sort_by, filterType: filter_type, page, limit }
       );
       return {
         content: [{ type: "text", text: formatPolicyFunds(result) }],

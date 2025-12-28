@@ -8,6 +8,7 @@ import type {
   StartupChecklist,
   BusinessTrends,
 } from "../types.js";
+import type { CommercialAreaComparison } from "../tools/commercial-area.js";
 
 // 상권 분석 결과 포맷
 export function formatCommercialArea(result: ApiResult<CommercialAreaData>): string {
@@ -119,6 +120,17 @@ export function formatPolicyFunds(result: ApiResult<PolicyFundRecommendation>): 
   lines.push(`💡 TIP`);
   lines.push(`   ${d.tip}`);
 
+  // 페이지네이션 정보 표시
+  if (d.pagination) {
+    lines.push(``);
+    lines.push(`📄 페이지 정보`);
+    lines.push(`   • 현재 페이지: ${d.pagination.page}/${d.pagination.totalPages}`);
+    lines.push(`   • 전체 ${d.totalCount}건 중 ${d.matchedFunds.length}건 표시`);
+    if (d.pagination.hasNextPage) {
+      lines.push(`   • 다음 페이지가 있습니다 (page=${d.pagination.page + 1})`);
+    }
+  }
+
   lines.push(``);
   lines.push(`⚠️ 참고: 최신 지원금 정보는 기업마당(bizinfo.go.kr)에서 확인하세요.`);
 
@@ -221,6 +233,52 @@ export function formatTrends(result: ApiResult<BusinessTrends>): string {
 
   lines.push(``);
   lines.push(`⚠️ 참고: 통계 기반 추정치이며, 실제 창업 결정 시 공식 출처(소상공인마당, 통계청) 확인을 권장합니다.`);
+
+  return lines.join("\n");
+}
+
+// 상권 비교 분석 결과 포맷
+export function formatComparison(result: ApiResult<CommercialAreaComparison>): string {
+  if (!result.success) {
+    return `❌ 오류: ${result.error?.message}\n💡 ${result.error?.suggestion || ""}`;
+  }
+
+  const d = result.data!;
+  const lines = [
+    `📊 상권 비교 분석 리포트`,
+    ``,
+    `🏆 종합 순위`,
+  ];
+
+  d.ranking.forEach((r, i) => {
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    const status = r.recommendation === "추천" ? "✅" : r.recommendation === "보통" ? "⚠️" : "❌";
+    lines.push(`   ${medal} ${r.location}: ${r.score}점 ${status} ${r.recommendation}`);
+  });
+
+  lines.push(``);
+  lines.push(`📍 지역별 상세 분석`);
+
+  d.locations.forEach((loc) => {
+    lines.push(``);
+    lines.push(`▸ ${loc.location.name}`);
+    lines.push(`   • 상권 유형: ${loc.areaType}`);
+    lines.push(`   • 포화도: ${loc.density.saturationScore}% (${loc.density.saturationLevel})`);
+    lines.push(`   • 동종 업종: ${loc.density.sameCategoryCount}개`);
+    lines.push(`   • 전체 상가: ${loc.density.totalStores}개`);
+  });
+
+  lines.push(``);
+  lines.push(`📝 분석 요약`);
+  lines.push(d.summary);
+
+  if (result.meta) {
+    lines.push(``);
+    lines.push(`📅 데이터 출처: ${result.meta.source}`);
+    if (result.meta.dataNote) {
+      lines.push(`📌 ${result.meta.dataNote}`);
+    }
+  }
 
   return lines.join("\n");
 }

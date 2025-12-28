@@ -203,12 +203,45 @@ function generateTip(
   return `${matchedFunds.length}개의 지원사업을 찾았습니다. 신청 기한을 확인하고 서류를 미리 준비하세요.`;
 }
 
+// 정렬 기준 타입
+type SortBy = "deadline" | "amount" | "match_score";
+
+// 정렬 함수
+function sortFunds(funds: PolicyFund[], sortBy: SortBy): PolicyFund[] {
+  return [...funds].sort((a, b) => {
+    switch (sortBy) {
+      case "deadline":
+        // 마감일 가까운 순 (없으면 뒤로)
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return a.deadline.localeCompare(b.deadline);
+      case "amount":
+        // 금액 높은 순 (숫자 추출 시도)
+        const extractAmount = (str: string): number => {
+          const match = str.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+        return extractAmount(b.amount) - extractAmount(a.amount);
+      case "match_score":
+      default:
+        // 기본 정렬 (이미 매칭 점수로 정렬됨)
+        return 0;
+    }
+  });
+}
+
 export async function recommendPolicyFunds(
   businessType: string,
   stage: "예비창업" | "초기창업" | "운영중" | "재창업",
   region: string,
   founderType?: "청년" | "중장년" | "여성" | "장애인" | "일반",
-  founderAge?: number
+  founderAge?: number,
+  options?: {
+    sortBy?: SortBy;
+    filterType?: "융자" | "보조금" | "멘토링" | "교육" | "복합";
+    page?: number;
+    limit?: number;
+  }
 ): Promise<ApiResult<PolicyFundRecommendation>> {
   try {
     // 나이가 있고 창업자 유형이 없으면 자동 추론
@@ -227,14 +260,35 @@ export async function recommendPolicyFunds(
     // 사용자 조건으로 추가 필터링 (나이 기반 정렬 포함)
     matchedFunds = filterAndSortByUserConditions(matchedFunds, region, effectiveFounderType, founderAge);
 
-    // 최대 10개로 제한
-    matchedFunds = matchedFunds.slice(0, 10);
+    // 유형 필터링
+    if (options?.filterType) {
+      matchedFunds = matchedFunds.filter((f) => f.type === options.filterType);
+    }
+
+    // 정렬 적용
+    if (options?.sortBy) {
+      matchedFunds = sortFunds(matchedFunds, options.sortBy);
+    }
+
+    // 전체 개수 저장 (페이지네이션 전)
+    const totalCount = matchedFunds.length;
+
+    // 페이지네이션 적용
+    const page = options?.page || 1;
+    const limit = options?.limit || 10;
+    const startIndex = (page - 1) * limit;
+    matchedFunds = matchedFunds.slice(startIndex, startIndex + limit);
 
     // 추천 팁 생성 (나이 기반 맞춤 팁)
     const tip = generateTip(matchedFunds, stage, effectiveFounderType, founderAge);
 
     // 나이 정보 표시용
     const ageInfo = founderAge ? `${founderAge}세` : undefined;
+
+    // 페이지 정보 생성
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
 
     return {
       success: true,
@@ -247,14 +301,23 @@ export async function recommendPolicyFunds(
           founderAge: ageInfo,
         },
         matchedFunds,
-        totalCount: matchedFunds.length,
+        totalCount,
         tip,
+        pagination: {
+          page,
+          limit,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+        },
       },
       meta: {
         source: DATA_SOURCES.bizinfoApi,
         timestamp: new Date().toISOString(),
         dataNote: founderAge
           ? `${founderAge}세 기준으로 적합한 지원사업을 우선 정렬했습니다.`
+          : options?.sortBy
+          ? `${options.sortBy === "deadline" ? "마감일순" : options.sortBy === "amount" ? "금액순" : "매칭점수순"}으로 정렬되었습니다.`
           : undefined,
       },
     };

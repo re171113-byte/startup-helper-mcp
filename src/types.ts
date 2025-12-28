@@ -94,6 +94,13 @@ export interface PolicyFundRecommendation {
   matchedFunds: PolicyFund[];
   totalCount: number;
   tip: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
 }
 
 // 인허가 정보

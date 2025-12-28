@@ -88,6 +88,137 @@ function calculateSaturationScore(
   return Math.min(100, Math.round(ratio));
 }
 
+// 벌크 비교 분석 결과 타입
+export interface CommercialAreaComparison {
+  locations: CommercialAreaData[];
+  ranking: {
+    location: string;
+    score: number;
+    recommendation: "추천" | "보통" | "비추천";
+  }[];
+  bestLocation: string;
+  summary: string;
+}
+
+// 입지 점수 계산 (낮은 포화도가 좋음)
+function calculateLocationScore(data: CommercialAreaData): number {
+  const saturationPenalty = data.density.saturationScore;
+  const diversityBonus = Object.keys(data.density.categoryBreakdown).length * 5;
+  const trafficBonus = data.density.totalStores > 30 ? 20 : data.density.totalStores > 15 ? 10 : 0;
+
+  // 100점 만점에서 포화도를 빼고 보너스 추가
+  return Math.max(0, Math.min(100, 100 - saturationPenalty + diversityBonus + trafficBonus));
+}
+
+// 여러 지역 비교 분석
+export async function compareCommercialAreas(
+  locations: string[],
+  businessType: string,
+  radius: number = 500
+): Promise<ApiResult<CommercialAreaComparison>> {
+  try {
+    // 모든 지역 병렬 분석
+    const results = await Promise.all(
+      locations.map((loc) => analyzeCommercialArea(loc, businessType, radius))
+    );
+
+    // 성공한 결과만 필터링
+    const successfulResults = results
+      .filter((r): r is ApiResult<CommercialAreaData> & { success: true; data: CommercialAreaData } =>
+        r.success && !!r.data
+      )
+      .map((r) => r.data);
+
+    if (successfulResults.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: "NO_VALID_LOCATIONS",
+          message: "분석 가능한 지역이 없습니다.",
+          suggestion: "입력한 지역명을 확인해주세요.",
+        },
+      };
+    }
+
+    // 점수 계산 및 순위 정렬
+    const ranking = successfulResults
+      .map((data) => ({
+        location: data.location.name,
+        score: calculateLocationScore(data),
+        saturation: data.density.saturationScore,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((item, index) => ({
+        location: item.location,
+        score: item.score,
+        recommendation: (item.score >= 70 ? "추천" : item.score >= 40 ? "보통" : "비추천") as "추천" | "보통" | "비추천",
+      }));
+
+    const bestLocation = ranking[0].location;
+
+    // 요약 생성
+    const summary = generateComparisonSummary(successfulResults, ranking, businessType);
+
+    return {
+      success: true,
+      data: {
+        locations: successfulResults,
+        ranking,
+        bestLocation,
+        summary,
+      },
+      meta: {
+        source: DATA_SOURCES.kakaoLocal,
+        timestamp: new Date().toISOString(),
+        dataNote: `${locations.length}개 지역 비교 분석 완료`,
+      },
+    };
+  } catch (error) {
+    console.error("벌크 비교 분석 실패:", error);
+
+    return {
+      success: false,
+      error: {
+        code: "COMPARISON_FAILED",
+        message: `비교 분석 중 오류가 발생했습니다: ${error instanceof Error ? error.message : "Unknown error"}`,
+        suggestion: "잠시 후 다시 시도해주세요.",
+      },
+    };
+  }
+}
+
+// 비교 요약 생성
+function generateComparisonSummary(
+  locations: CommercialAreaData[],
+  ranking: { location: string; score: number; recommendation: string }[],
+  businessType: string
+): string {
+  const best = ranking[0];
+  const worst = ranking[ranking.length - 1];
+
+  const bestData = locations.find((l) => l.location.name === best.location)!;
+  const worstData = locations.find((l) => l.location.name === worst.location)!;
+
+  let summary = `${businessType} 창업 입지 비교 결과:\n\n`;
+  summary += `🥇 최적 입지: ${best.location} (점수: ${best.score}점)\n`;
+  summary += `   - 포화도: ${bestData.density.saturationScore}%, ${bestData.density.sameCategoryCount}개 업체\n`;
+  summary += `   - 상권유형: ${bestData.areaType}\n\n`;
+
+  if (ranking.length > 1) {
+    summary += `🥉 최하위: ${worst.location} (점수: ${worst.score}점)\n`;
+    summary += `   - 포화도: ${worstData.density.saturationScore}%, ${worstData.density.sameCategoryCount}개 업체\n\n`;
+  }
+
+  const recommended = ranking.filter((r) => r.recommendation === "추천");
+  if (recommended.length > 0) {
+    summary += `✅ 추천 지역: ${recommended.map((r) => r.location).join(", ")}`;
+  } else {
+    summary += `⚠️ 모든 지역의 포화도가 높습니다. 차별화 전략이 필요합니다.`;
+  }
+
+  return summary;
+}
+
 export async function analyzeCommercialArea(
   location: string,
   businessType: string,
